@@ -1,4 +1,5 @@
-#version 410 core
+#version 300 es
+precision mediump float;
 
 in vec3 v_tangent;
 in vec3 v_normal;
@@ -27,7 +28,7 @@ uniform bool u_depthmapEnable;
 uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
 uniform sampler2D u_tex2;
-uniform sampler1DArray u_tex_lighting_lut;
+// uniform sampler1DArray u_tex_lighting_lut;
 
 uniform uint u_picaRegs[0x200 - 0x48];
 
@@ -145,16 +146,23 @@ vec4 tevCalculateCombiner(int tev_id) {
 #define RR_LUT 6u
 
 float lutLookup(uint lut, uint light, float value) {
-	if (lut >= FR_LUT && lut <= RR_LUT) lut -= 1;
-	if (lut == SP_LUT) lut = light + 8;
-	return texture(u_tex_lighting_lut, vec2(value, lut)).r;
+	// if (lut >= FR_LUT && lut <= RR_LUT) lut -= 1;
+	// if (lut == SP_LUT) lut = light + 8;
+	// return texture(u_tex_lighting_lut, vec2(value, lut)).r;
+	return 0.0;
+}
+
+// some gles versions have bitfieldExtract and complain if you redefine it, some don't and compile error, using this instead
+uint bitfieldExtractCompat(uint val, int off, int size) {
+    uint mask = uint((1 << size) - 1);
+    return uint(val >> off) & mask;
 }
 
 vec3 regToColor(uint reg) {
 	// Normalization scale to convert from [0...255] to [0.0...1.0]
 	const float scale = 1.0 / 255.0;
 
-	return scale * vec3(float(bitfieldExtract(reg, 20, 8)), float(bitfieldExtract(reg, 10, 8)), float(bitfieldExtract(reg, 00, 8)));
+	return scale * vec3(float(bitfieldExtractCompat(reg, 20, 8)), float(bitfieldExtractCompat(reg, 10, 8)), float(bitfieldExtractCompat(reg, 00, 8)));
 }
 
 // Convert an arbitrary-width floating point literal to an f32
@@ -189,7 +197,7 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 	vec3 view = normalize(v_view);
 
 	uint GPUREG_LIGHTING_ENABLE = readPicaReg(0x008Fu);
-	if (bitfieldExtract(GPUREG_LIGHTING_ENABLE, 0, 1) == 0u) {
+	if (bitfieldExtractCompat(GPUREG_LIGHTING_ENABLE, 0, 1) == 0u) {
 		primary_color = secondary_color = vec4(1.0);
 		return;
 	}
@@ -213,7 +221,7 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 	bool error_unimpl = false;
 
 	for (uint i = 0u; i < GPUREG_LIGHTING_NUM_LIGHTS; i++) {
-		uint light_id = bitfieldExtract(GPUREG_LIGHTING_LIGHT_PERMUTATION, int(i * 3u), 3);
+		uint light_id = bitfieldExtractCompat(GPUREG_LIGHTING_LIGHT_PERMUTATION, int(i * 3u), 3);
 
 		uint GPUREG_LIGHTi_SPECULAR0 = readPicaReg(0x0140u + 0x10u * light_id);
 		uint GPUREG_LIGHTi_SPECULAR1 = readPicaReg(0x0141u + 0x10u * light_id);
@@ -224,14 +232,14 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 		uint GPUREG_LIGHTi_CONFIG = readPicaReg(0x0149u + 0x10u * light_id);
 
 		vec3 light_vector = normalize(vec3(
-			decodeFP(bitfieldExtract(GPUREG_LIGHTi_VECTOR_LOW, 0, 16), 5u, 10u), decodeFP(bitfieldExtract(GPUREG_LIGHTi_VECTOR_LOW, 16, 16), 5u, 10u),
-			decodeFP(bitfieldExtract(GPUREG_LIGHTi_VECTOR_HIGH, 0, 16), 5u, 10u)
+			decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_VECTOR_LOW, 0, 16), 5u, 10u), decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_VECTOR_LOW, 16, 16), 5u, 10u),
+			decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_VECTOR_HIGH, 0, 16), 5u, 10u)
 		));
 
 		vec3 half_vector;
 
 		// Positional Light
-		if (bitfieldExtract(GPUREG_LIGHTi_CONFIG, 0, 1) == 0u) {
+		if (bitfieldExtractCompat(GPUREG_LIGHTi_CONFIG, 0, 1) == 0u) {
 			// error_unimpl = true;
 			half_vector = normalize(normalize(light_vector + v_view) + view);
 		}
@@ -242,12 +250,12 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 		}
 
 		for (int c = 0; c < 7; c++) {
-			if (bitfieldExtract(GPUREG_LIGHTING_CONFIG1, 16 + c, 1) == 0u) {
-				uint scale_id = bitfieldExtract(GPUREG_LIGHTING_LUTINPUT_SCALE, c * 4, 3);
+			if (bitfieldExtractCompat(GPUREG_LIGHTING_CONFIG1, 16 + c, 1) == 0u) {
+				uint scale_id = bitfieldExtractCompat(GPUREG_LIGHTING_LUTINPUT_SCALE, c * 4, 3);
 				float scale = float(1u << scale_id);
 				if (scale_id >= 6u) scale /= 256.0;
 
-				uint input_id = bitfieldExtract(GPUREG_LIGHTING_LUTINPUT_SELECT, c * 4, 3);
+				uint input_id = bitfieldExtractCompat(GPUREG_LIGHTING_LUTINPUT_SELECT, c * 4, 3);
 				if (input_id == 0u)
 					d[c] = dot(normal, half_vector);
 				else if (input_id == 1u)
@@ -260,9 +268,9 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 					uint GPUREG_LIGHTi_SPOTDIR_LOW = readPicaReg(0x0146u + 0x10u * light_id);
 					uint GPUREG_LIGHTi_SPOTDIR_HIGH = readPicaReg(0x0147u + 0x10u * light_id);
 					vec3 spot_light_vector = normalize(vec3(
-						decodeFP(bitfieldExtract(GPUREG_LIGHTi_SPOTDIR_LOW, 0, 16), 1u, 11u),
-						decodeFP(bitfieldExtract(GPUREG_LIGHTi_SPOTDIR_LOW, 16, 16), 1u, 11u),
-						decodeFP(bitfieldExtract(GPUREG_LIGHTi_SPOTDIR_HIGH, 0, 16), 1u, 11u)
+						decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_SPOTDIR_LOW, 0, 16), 1u, 11u),
+						decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_SPOTDIR_LOW, 16, 16), 1u, 11u),
+						decodeFP(bitfieldExtractCompat(GPUREG_LIGHTi_SPOTDIR_HIGH, 0, 16), 1u, 11u)
 					));
 					d[c] = dot(-light_vector, spot_light_vector);  // -L dot P (aka Spotlight aka SP);
 				} else if (input_id == 5u) {
@@ -273,13 +281,13 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 				}
 
 				d[c] = lutLookup(uint(c), light_id, d[c] * 0.5 + 0.5) * scale;
-				if (bitfieldExtract(GPUREG_LIGHTING_LUTINPUT_ABS, 2 * c, 1) != 0u) d[c] = abs(d[c]);
+				if (bitfieldExtractCompat(GPUREG_LIGHTING_LUTINPUT_ABS, 2 * c, 1) != 0u) d[c] = abs(d[c]);
 			} else {
 				d[c] = 1.0;
 			}
 		}
 
-		uint lookup_config = bitfieldExtract(GPUREG_LIGHTi_CONFIG, 4, 4);
+		uint lookup_config = bitfieldExtractCompat(GPUREG_LIGHTi_CONFIG, 4, 4);
 		if (lookup_config == 0u) {
 			d[D1_LUT] = 0.0;
 			d[FR_LUT] = 0.0;
@@ -310,7 +318,7 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 		float NdotL = dot(normal, light_vector);  // Li dot N
 
 		// Two sided diffuse
-		if (bitfieldExtract(GPUREG_LIGHTi_CONFIG, 1, 1) == 0u)
+		if (bitfieldExtractCompat(GPUREG_LIGHTi_CONFIG, 1, 1) == 0u)
 			NdotL = max(0.0, NdotL);
 		else
 			NdotL = abs(NdotL);
@@ -321,8 +329,8 @@ void calcLighting(out vec4 primary_color, out vec4 secondary_color) {
 		secondary_color.rgb += light_factor * (regToColor(GPUREG_LIGHTi_SPECULAR0) * d[D0_LUT] +
 											   regToColor(GPUREG_LIGHTi_SPECULAR1) * d[D1_LUT] * vec3(d[RR_LUT], d[RG_LUT], d[RB_LUT]));
 	}
-	uint fresnel_output1 = bitfieldExtract(GPUREG_LIGHTING_CONFIG0, 2, 1);
-	uint fresnel_output2 = bitfieldExtract(GPUREG_LIGHTING_CONFIG0, 3, 1);
+	uint fresnel_output1 = bitfieldExtractCompat(GPUREG_LIGHTING_CONFIG0, 2, 1);
+	uint fresnel_output2 = bitfieldExtractCompat(GPUREG_LIGHTING_CONFIG0, 3, 1);
 
 	if (fresnel_output1 == 1u) primary_color.a = d[FR_LUT];
 	if (fresnel_output2 == 1u) secondary_color.a = d[FR_LUT];
