@@ -2,6 +2,7 @@ package com.panda3ds.pandroid.app;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.Intent;
 
 import com.panda3ds.pandroid.AlberDriver;
 import com.panda3ds.pandroid.data.config.GlobalConfig;
@@ -19,6 +20,7 @@ public class PandroidApplication extends Application {
         GameUtils.initialize();
         InputMap.initialize();
         AlberDriver.Setup();
+        startService(new Intent(this, LogService.class));
     }
 
     public static Context getAppContext() {

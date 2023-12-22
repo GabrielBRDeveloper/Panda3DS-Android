@@ -31,6 +31,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".app.LogService"
+            android:process=":LogcatService"/>
         <activity
             android:name=".app.GameActivity"
             android:configChanges="screenSize|screenLayout|orientation|density|uiMode">
