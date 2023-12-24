@@ -20,6 +20,7 @@ import com.panda3ds.pandroid.data.config.GlobalConfig;
 import com.panda3ds.pandroid.input.InputHandler;
 import com.panda3ds.pandroid.input.InputMap;
 import com.panda3ds.pandroid.utils.Constants;
+import com.panda3ds.pandroid.view.Debug;
 import com.panda3ds.pandroid.view.PandaGlSurfaceView;
 import com.panda3ds.pandroid.view.PandaLayoutController;
 
@@ -55,6 +56,10 @@ public class GameActivity extends BaseActivity {
 			GlobalConfig.set(GlobalConfig.KEY_SCREEN_GAMEPAD_VISIBLE, checked);
 		});
 		((CheckBox) findViewById(R.id.hide_screen_controller)).setChecked(GlobalConfig.get(GlobalConfig.KEY_SCREEN_GAMEPAD_VISIBLE));
+
+		Debug debug = new Debug(this);
+		debug.setRenderer(pandaSurface.getRenderer());
+		addContentView(debug, new WindowManager.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 	}
 
 	@Override

@@ -19,6 +19,8 @@ public class PandaGlRenderer implements GLSurfaceView.Renderer, ConsoleRenderer 
 	private ConsoleLayout displayLayout;
 	private int screenWidth, screenHeight;
 	private int screenTexture;
+	private int fps, fpsAmount;
+	private long lastFpsUpdate;
 	public int screenFbo;
 
 	PandaGlRenderer(String romPath) {
@@ -79,6 +81,14 @@ public class PandaGlRenderer implements GLSurfaceView.Renderer, ConsoleRenderer 
 	}
 
 	public void onDrawFrame(GL10 unused) {
+		if (System.currentTimeMillis() - lastFpsUpdate >= 1000L){
+			lastFpsUpdate = System.currentTimeMillis();
+			fps = fpsAmount;
+			fpsAmount = 0;
+		}
+
+		fpsAmount++;
+
 		if (AlberDriver.HasRomLoaded()) {
 			AlberDriver.RunFrame(screenFbo);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -118,6 +128,11 @@ public class PandaGlRenderer implements GLSurfaceView.Renderer, ConsoleRenderer 
 	@Override
 	public ConsoleLayout getLayout() {
 		return displayLayout;
+	}
+
+	@Override
+	public int getFps() {
+		return fps;
 	}
 
 	@Override
