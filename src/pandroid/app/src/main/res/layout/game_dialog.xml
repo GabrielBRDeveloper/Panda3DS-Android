@@ -92,8 +92,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:contentDescription="settings"
-        
-               
                 app:icon="@drawable/ic_settings"/>
 
         </com.google.android.flexbox.FlexboxLayout>
