@@ -47,5 +47,5 @@
         android:defaultValue="true"
         android:summaryOn="@string/pref_logger_service_summary"
         android:summaryOff="@string/pref_logger_service_summary"/>
-
+   </PreferenceCategory>
 </PreferenceScreen>
