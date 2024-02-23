@@ -77,7 +77,7 @@ public class GameActivity extends BaseActivity {
 		InputHandler.reset();
 		InputHandler.setMotionDeadZone(InputMap.getDeadZone());
 		InputHandler.setEventListener(inputListener);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+		if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
                     setPictureInPictureParams(new PictureInPictureParams.Builder().setAutoEnterEnabled(true).build());
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
