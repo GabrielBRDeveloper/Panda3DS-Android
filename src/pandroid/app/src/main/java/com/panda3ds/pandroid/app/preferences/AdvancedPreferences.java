@@ -52,5 +52,6 @@ public class AdvancedPreferences extends BasePreferenceFragment {
         } else {
           ((SwitchPreferenceCompat) findPreference("pictureInPicture").setEnabled(false));
           ((SwitchPreferenceCompat) findPreference("pictureInPicture").setSummary("Your Device isn't supported this feature"));
+        }
     }
 }
