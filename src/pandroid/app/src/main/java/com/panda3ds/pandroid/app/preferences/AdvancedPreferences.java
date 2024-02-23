@@ -48,10 +48,10 @@ public class AdvancedPreferences extends BasePreferenceFragment {
         ((SwitchPreferenceCompat) findPreference("loggerService")).setChecked(GlobalConfig.get(GlobalConfig.KEY_LOGGER_SERVICE));
         ((SwitchPreferenceCompat) findPreference("shaderJit")).setChecked(GlobalConfig.get(GlobalConfig.KEY_SHADER_JIT));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          ((SwitchPreferenceCompat) findPreference("pictureInPicture").setEnabled(true));
+            findPreference("pictureInPicture").setEnabled(true);
         } else {
-          ((SwitchPreferenceCompat) findPreference("pictureInPicture").setEnabled(false));
-          ((SwitchPreferenceCompat) findPreference("pictureInPicture").setSummary("Your Device isn't supported this feature"));
+            findPreference("pictureInPicture").setEnabled(false);
+            findPreference("pictureInPicture").setSummary("Your device does not support this feature");
         }
     }
 }
