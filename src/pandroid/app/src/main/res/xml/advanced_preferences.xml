@@ -22,6 +22,8 @@
         android:defaultValue="false"
         app:iconSpaceReserved="false"/>
 
+      </PreferenceCategory>
+
     <PreferenceCategory
         app:iconSpaceReserved="false"
         app:title="@string/graphics">
