@@ -14,6 +14,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.content.Intent;
 
 import com.google.android.material.navigation.NavigationView;
 import com.panda3ds.pandroid.AlberDriver;
@@ -104,7 +105,12 @@ public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListe
         if (id == R.id.resume) {
             close();
         } else if (id == R.id.exit) {
-            requireActivity().finish();
+            // Finish the current task (all activities in the task will be finished)
+            finishAffinity();
+            // Restart the app by launching its main activity
+            Intent intent = new Intent(context, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
         } else if (id == R.id.lua_script) {
             new LuaDialogFragment().show(getParentFragmentManager(), null);
         } else if (id == R.id.change_orientation) {
