@@ -78,7 +78,9 @@ public class GameActivity extends BaseActivity {
 		InputHandler.setMotionDeadZone(InputMap.getDeadZone());
 		InputHandler.setEventListener(inputListener);
 		if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     setPictureInPictureParams(new PictureInPictureParams.Builder().setAutoEnterEnabled(true).build());
+		 }
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
 			getTheme().applyStyle(R.style.GameActivityNavigationBar, true);
@@ -112,6 +114,7 @@ public class GameActivity extends BaseActivity {
         // Calculate aspect ratio
         float aspectRatio = (float) widthPixels / (float) heightPixels;
 
+	if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             Rational aspectRatioRational = new Rational(widthPixels, heightPixels);
             PictureInPictureParams.Builder pipBuilder = new PictureInPictureParams.Builder();
@@ -119,6 +122,7 @@ public class GameActivity extends BaseActivity {
             enterPictureInPictureMode(pipBuilder.build());
         }
      }
+  }
 
 	@Override
 	protected void onPause() {
