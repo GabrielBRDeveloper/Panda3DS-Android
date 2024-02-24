@@ -1,6 +1,7 @@
 package com.panda3ds.pandroid.app.game;
 
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -22,6 +23,7 @@ import com.panda3ds.pandroid.R;
 import com.panda3ds.pandroid.data.game.GameMetadata;
 import com.panda3ds.pandroid.utils.GameUtils;
 import com.panda3ds.pandroid.view.gamesgrid.GameIconView;
+import com.panda3ds.pandroid.data.config.GlobalConfig;
 
 public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListener, NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerContainer;
@@ -105,12 +107,21 @@ public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListe
         if (id == R.id.resume) {
             close();
         } else if (id == R.id.exit) {
-            // Finish the current task (all activities in the task will be finished)
-            finishAffinity();
-            // Restart the app by launching its main activity
-            Intent intent = new Intent(context, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
+            if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            requireActivity().finish();
+            String packageName = getPackageName();
+            Intent intent = getPackageManager().getLaunchIntentForPackage(packageName);
+            if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(intent);
+           }
+        } else {
+            requireActivity().finish();
+        }
+     } else {
+         requireActivity().finish();
+     }
         } else if (id == R.id.lua_script) {
             new LuaDialogFragment().show(getParentFragmentManager(), null);
         } else if (id == R.id.change_orientation) {
