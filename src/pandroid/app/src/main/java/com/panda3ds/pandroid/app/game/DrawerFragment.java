@@ -110,12 +110,12 @@ public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListe
             if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             requireActivity().finish();
-            String packageName = getPackageName();
-            Intent intent = getPackageManager().getLaunchIntentForPackage(packageName);
+            String packageName = requireActivity().getPackageName();
+            Intent intent = requireActivity().getPackageManager().getLaunchIntentForPackage(packageName);
             if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(intent);
-           }
+            }
         } else {
             requireActivity().finish();
         }
