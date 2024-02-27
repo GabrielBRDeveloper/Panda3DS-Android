@@ -15,7 +15,6 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
-import android.content.Intent;
 
 import com.google.android.material.navigation.NavigationView;
 import com.panda3ds.pandroid.AlberDriver;
@@ -23,7 +22,6 @@ import com.panda3ds.pandroid.R;
 import com.panda3ds.pandroid.data.game.GameMetadata;
 import com.panda3ds.pandroid.utils.GameUtils;
 import com.panda3ds.pandroid.view.gamesgrid.GameIconView;
-import com.panda3ds.pandroid.data.config.GlobalConfig;
 
 public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListener, NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerContainer;
@@ -107,21 +105,7 @@ public class DrawerFragment extends Fragment implements DrawerLayout.DrawerListe
         if (id == R.id.resume) {
             close();
         } else if (id == R.id.exit) {
-            if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             requireActivity().finish();
-            String packageName = requireActivity().getPackageName();
-            Intent intent = requireActivity().getPackageManager().getLaunchIntentForPackage(packageName);
-            if (intent != null) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
-            }
-        } else {
-            requireActivity().finish();
-        }
-     } else {
-         requireActivity().finish();
-     }
         } else if (id == R.id.lua_script) {
             new LuaDialogFragment().show(getParentFragmentManager(), null);
         } else if (id == R.id.change_orientation) {
