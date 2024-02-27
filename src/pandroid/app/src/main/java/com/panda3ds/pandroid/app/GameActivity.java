@@ -79,9 +79,11 @@ public class GameActivity extends BaseActivity {
 		InputHandler.setEventListener(inputListener);
 		if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+		if (!drawerFragment.isOpened()) {
                     setPictureInPictureParams(new PictureInPictureParams.Builder().setAutoEnterEnabled(true).build());
+		   }
 		 }
-		}
+	      }
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
 			getTheme().applyStyle(R.style.GameActivityNavigationBar, true);
 		}
@@ -91,9 +93,6 @@ public class GameActivity extends BaseActivity {
         public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
         if (isInPictureInPictureMode) {
-	    if (drawerFragment.isOpened()) {
-		drawerFragment.close();
-	    }
            findViewById(R.id.overlay_controller).setVisibility(View.GONE);
         } else {
 	  if (GlobalConfig.get(GlobalConfig.KEY_SCREEN_GAMEPAD_VISIBLE)) {
@@ -114,13 +113,15 @@ public class GameActivity extends BaseActivity {
         // Calculate aspect ratio
         float aspectRatio = (float) widthPixels / (float) heightPixels;
 
-	if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
+        if (GlobalConfig.get(GlobalConfig.KEY_PICTURE_IN_PICTURE)) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+	if (!drawerFragment.isOpened()) {
             Rational aspectRatioRational = new Rational(widthPixels, heightPixels);
             PictureInPictureParams.Builder pipBuilder = new PictureInPictureParams.Builder();
             pipBuilder.setAspectRatio(aspectRatioRational);
             enterPictureInPictureMode(pipBuilder.build());
-        }
+	  }
+       }
      }
   }
 
