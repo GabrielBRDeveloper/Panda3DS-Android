@@ -153,7 +153,14 @@ if(HOST_X64 OR HOST_ARM64)
 else()
     message(FATAL_ERROR "Currently unsupported CPU architecture")
 endif()
+
 add_subdirectory(third_party/teakra EXCLUDE_FROM_ALL)
+
+set(CAPSTONE_ARCHITECTURE_DEFAULT OFF)
+set(CAPSTONE_ARM_SUPPORT ON)
+set(CAPSTONE_BUILD_MACOS_THIN ON)
+add_subdirectory(third_party/capstone)
+include_directories(third_party/capstone/include)
 
 set(SOURCE_FILES src/emulator.cpp src/io_file.cpp src/config.cpp
                  src/core/CPU/cpu_dynarmic.cpp src/core/CPU/dynarmic_cycles.cpp
@@ -197,11 +204,11 @@ set(APPLET_SOURCE_FILES src/core/applets/applet.cpp src/core/applets/mii_selecto
                         src/core/applets/error_applet.cpp
 )
 set(AUDIO_SOURCE_FILES src/core/audio/dsp_core.cpp src/core/audio/null_core.cpp src/core/audio/teakra_core.cpp
-                       src/core/audio/miniaudio_device.cpp
+                       src/core/audio/miniaudio_device.cpp src/core/audio/hle_core.cpp
 )
 set(RENDERER_SW_SOURCE_FILES src/core/renderer_sw/renderer_sw.cpp)
 
-set(HEADER_FILES include/emulator.hpp include/helpers.hpp include/termcolor.hpp
+set(HEADER_FILES include/emulator.hpp include/helpers.hpp include/termcolor.hpp include/input_mappings.hpp
                  include/cpu.hpp include/cpu_dynarmic.hpp include/memory.hpp include/renderer.hpp include/kernel/kernel.hpp
                  include/dynarmic_cp15.hpp include/kernel/resource_limits.hpp include/kernel/kernel_types.hpp
                  include/kernel/config_mem.hpp include/services/service_manager.hpp include/services/apt.hpp
@@ -233,7 +240,8 @@ set(HEADER_FILES include/emulator.hpp include/helpers.hpp include/termcolor.hpp
                  include/fs/archive_system_save_data.hpp include/lua_manager.hpp include/memory_mapped_file.hpp include/hydra_icon.hpp
                  include/PICA/dynapica/shader_rec_emitter_arm64.hpp include/scheduler.hpp include/applets/error_applet.hpp
                  include/audio/dsp_core.hpp include/audio/null_core.hpp include/audio/teakra_core.hpp
-                 include/audio/miniaudio_device.hpp include/ring_buffer.hpp
+                 include/audio/miniaudio_device.hpp include/ring_buffer.hpp include/bitfield.hpp include/audio/dsp_shared_mem.hpp
+                 include/audio/hle_core.hpp include/capstone.hpp include/audio/aac.hpp
 )
 
 cmrc_add_resource_library(
@@ -398,7 +406,7 @@ set(ALL_SOURCES ${SOURCE_FILES} ${FS_SOURCE_FILES} ${CRYPTO_SOURCE_FILES} ${KERN
 target_sources(AlberCore PRIVATE ${ALL_SOURCES})
 
 target_link_libraries(AlberCore PRIVATE dynarmic cryptopp glad resources_console_fonts teakra)
-target_link_libraries(AlberCore PUBLIC glad)
+target_link_libraries(AlberCore PUBLIC glad capstone)
 
 if(ENABLE_DISCORD_RPC AND NOT ANDROID)
     target_compile_definitions(AlberCore PUBLIC "PANDA3DS_ENABLE_DISCORD_RPC=1")
@@ -439,7 +447,7 @@ if(NOT BUILD_HYDRA_CORE)
         endif()
 
         set(FRONTEND_SOURCE_FILES src/panda_qt/main.cpp src/panda_qt/screen.cpp src/panda_qt/main_window.cpp src/panda_qt/about_window.cpp
-            src/panda_qt/config_window.cpp src/panda_qt/zep.cpp src/panda_qt/text_editor.cpp src/panda_qt/cheats_window.cpp
+            src/panda_qt/config_window.cpp src/panda_qt/zep.cpp src/panda_qt/text_editor.cpp src/panda_qt/cheats_window.cpp src/panda_qt/mappings.cpp
         )   
         set(FRONTEND_HEADER_FILES include/panda_qt/screen.hpp include/panda_qt/main_window.hpp include/panda_qt/about_window.hpp
             include/panda_qt/config_window.hpp include/panda_qt/text_editor.hpp include/panda_qt/cheats_window.hpp
@@ -478,7 +486,7 @@ if(NOT BUILD_HYDRA_CORE)
                 docs/img/rsob_icon.png docs/img/rstarstruck_icon.png
         )
     else()
-        set(FRONTEND_SOURCE_FILES src/panda_sdl/main.cpp src/panda_sdl/frontend_sdl.cpp)
+        set(FRONTEND_SOURCE_FILES src/panda_sdl/main.cpp src/panda_sdl/frontend_sdl.cpp src/panda_sdl/mappings.cpp)
         set(FRONTEND_HEADER_FILES "")
     endif()
 

@@ -7,11 +7,19 @@
 #include <catch2/catch_test_macros.hpp>
 #include <initializer_list>
 #include <memory>
+#include <span>
 
 using namespace Floats;
 static const nihstro::SourceRegister input0 = nihstro::SourceRegister::MakeInput(0);
 static const nihstro::SourceRegister input1 = nihstro::SourceRegister::MakeInput(1);
 static const nihstro::DestRegister output0 = nihstro::DestRegister::MakeOutput(0);
+
+static const std::array<Floats::f24, 4> vectorOnes = {
+	Floats::f24::fromFloat32(1.0f),
+	Floats::f24::fromFloat32(1.0f),
+	Floats::f24::fromFloat32(1.0f),
+	Floats::f24::fromFloat32(1.0f),
+};
 
 static std::unique_ptr<PICAShader> assembleVertexShader(std::initializer_list<nihstro::InlineAsm> code) {
 	const auto shaderBinary = nihstro::InlineAsm::CompileToRawBinary(code);
@@ -28,23 +36,44 @@ static std::unique_ptr<PICAShader> assembleVertexShader(std::initializer_list<ni
 	return newShader;
 }
 
-class ShaderInterpreterTest final {
-  private:
+class ShaderInterpreterTest {
+  protected:
 	std::unique_ptr<PICAShader> shader = {};
+
+	virtual void runShader() { shader->run(); }
 
   public:
 	explicit ShaderInterpreterTest(std::initializer_list<nihstro::InlineAsm> code) : shader(assembleVertexShader(code)) {}
 
-	// Multiple inputs, singular scalar output
-	float runScalar(std::initializer_list<float> inputs) {
-		usize inputIndex = 0;
-		for (const float& input : inputs) {
-			const std::array<Floats::f24, 4> input_vec = std::array<Floats::f24, 4>{f24::fromFloat32(input), f24::zero(), f24::zero(), f24::zero()};
-			shader->inputs[inputIndex++] = input_vec;
-		}
-		shader->run();
-		return shader->outputs[0][0];
+	std::span<const std::array<Floats::f24, 4>> runTest(std::span<const std::array<Floats::f24, 4>> inputs) {
+		std::copy(inputs.begin(), inputs.end(), shader->inputs.begin());
+		runShader();
+		return shader->outputs;
 	}
+
+	// Each input is written to the x component of sequential input registers
+	// The first output vector is returned
+	const std::array<Floats::f24, 4>& runVector(std::initializer_list<float> inputs) {
+		std::vector<std::array<Floats::f24, 4>> inputsVec;
+		for (const float& input : inputs) {
+			const std::array<Floats::f24, 4> inputVec = {
+				f24::fromFloat32(input),
+				f24::zero(),
+				f24::zero(),
+				f24::zero(),
+			};
+			inputsVec.emplace_back(inputVec);
+		}
+		return runTest(inputsVec)[0];
+	}
+
+	// Each input is written to the x component of sequential input registers
+	// The x component of the first output
+	float runScalar(std::initializer_list<float> inputs) { return runVector(inputs)[0].toFloat32(); }
+
+	[[nodiscard]] std::array<std::array<Floats::f24, 4>, 96>& floatUniforms() const { return shader->floatUniforms; }
+	[[nodiscard]] std::array<std::array<u8, 4>, 4>& intUniforms() const { return shader->intUniforms; }
+	[[nodiscard]] u32& boolUniforms() const { return shader->boolUniform; }
 
 	static std::unique_ptr<ShaderInterpreterTest> assembleTest(std::initializer_list<nihstro::InlineAsm> code) {
 		return std::make_unique<ShaderInterpreterTest>(code);
@@ -52,24 +81,14 @@ class ShaderInterpreterTest final {
 };
 
 #if defined(PANDA3DS_SHADER_JIT_SUPPORTED)
-class ShaderJITTest final {
+class ShaderJITTest final : public ShaderInterpreterTest {
   private:
-	std::unique_ptr<PICAShader> shader = {};
 	ShaderJIT shaderJit = {};
 
-  public:
-	explicit ShaderJITTest(std::initializer_list<nihstro::InlineAsm> code) : shader(assembleVertexShader(code)) { shaderJit.prepare(*shader.get()); }
+	void runShader() override { shaderJit.run(*shader); }
 
-	// Multiple inputs, singular scalar output
-	float runScalar(std::initializer_list<float> inputs) {
-		usize inputIndex = 0;
-		for (const float& input : inputs) {
-			const std::array<Floats::f24, 4> input_vec = std::array<Floats::f24, 4>{f24::fromFloat32(input), f24::zero(), f24::zero(), f24::zero()};
-			shader->inputs[inputIndex++] = input_vec;
-		}
-		shaderJit.run(*shader.get());
-		return shader->outputs[0][0];
-	}
+  public:
+	explicit ShaderJITTest(std::initializer_list<nihstro::InlineAsm> code) : ShaderInterpreterTest(code) { shaderJit.prepare(*shader); }
 
 	static std::unique_ptr<ShaderJITTest> assembleTest(std::initializer_list<nihstro::InlineAsm> code) {
 		return std::make_unique<ShaderJITTest>(code);
@@ -79,6 +98,15 @@ class ShaderJITTest final {
 #else
 #define SHADER_TEST_CASE(NAME, TAG) TEMPLATE_TEST_CASE(NAME, TAG, ShaderInterpreterTest)
 #endif
+
+namespace Catch {
+	template <>
+	struct StringMaker<std::array<Floats::f24, 4>> {
+		static std::string convert(std::array<Floats::f24, 4> value) {
+			return std::format("({}, {}, {}, {})", value[0].toFloat32(), value[1].toFloat32(), value[2].toFloat32(), value[3].toFloat32());
+		}
+	};
+}  // namespace Catch
 
 SHADER_TEST_CASE("ADD", "[shader][vertex]") {
 	const auto shader = TestType::assembleTest({
@@ -256,4 +284,84 @@ SHADER_TEST_CASE("FLR", "[shader][vertex]") {
 	REQUIRE(shader->runScalar({-1.5}) == -2.0f);
 	REQUIRE(std::isnan(shader->runScalar({NAN})));
 	REQUIRE(std::isinf(shader->runScalar({INFINITY})));
+}
+
+SHADER_TEST_CASE("Uniform Read", "[shader][vertex][uniform]") {
+	const auto constant0 = nihstro::SourceRegister::MakeFloat(0);
+	auto shader = TestType::assembleTest({
+		{nihstro::OpCode::Id::MOVA, nihstro::DestRegister{}, "x", input0, "x", nihstro::SourceRegister{}, "", nihstro::InlineAsm::RelativeAddress::A1
+		},
+		{nihstro::OpCode::Id::MOV, output0, "xyzw", constant0, "xyzw", nihstro::SourceRegister{}, "", nihstro::InlineAsm::RelativeAddress::A1},
+		{nihstro::OpCode::Id::END},
+	});
+
+	// Generate float uniforms
+	std::array<std::array<Floats::f24, 4>, 96> floatUniforms = {};
+	for (u32 i = 0; i < 96; ++i) {
+		const float color = (i * 2.0f) / 255.0f;
+		const Floats::f24 color24 = Floats::f24::fromFloat32(color);
+		const std::array<Floats::f24, 4> testValue = {color24, color24, color24, Floats::f24::fromFloat32(1.0f)};
+		shader->floatUniforms()[i] = testValue;
+		floatUniforms[i] = testValue;
+	}
+
+	for (u32 i = 0; i < 96; ++i) {
+		const float index = static_cast<float>(i);
+		// Intentionally use some fractional values to verify float->integer
+		// truncation during address translation
+		const float fractional = (i % 17) / 17.0f;
+
+		REQUIRE(shader->runVector({index + fractional}) == floatUniforms[i]);
+	}
+}
+
+SHADER_TEST_CASE("Address Register Offset", "[video_core][shader][shader_jit]") {
+	const auto constant40 = nihstro::SourceRegister::MakeFloat(40);
+	auto shader = TestType::assembleTest({
+		// mova a0.x, sh_input.x
+		{nihstro::OpCode::Id::MOVA, nihstro::DestRegister{}, "x", input0, "x", nihstro::SourceRegister{}, "", nihstro::InlineAsm::RelativeAddress::A1
+		},
+		// mov sh_output.xyzw, c40[a0.x].xyzw
+		{nihstro::OpCode::Id::MOV, output0, "xyzw", constant40, "xyzw", nihstro::SourceRegister{}, "", nihstro::InlineAsm::RelativeAddress::A1},
+		{nihstro::OpCode::Id::END},
+	});
+
+	// Generate uniforms
+	const bool inverted = true;
+	std::array<std::array<Floats::f24, 4>, 96> floatUniforms = {};
+	for (u8 i = 0; i < 0x80; i++) {
+		// Float uniforms
+		if (i >= 0x00 && i < 0x60) {
+			const u32 base = inverted ? (0x60 - i) : i;
+			const auto color = (base * 2.f) / 255.0f;
+			const auto color24 = Floats::f24::fromFloat32(color);
+			const std::array<Floats::f24, 4> testValue = {color24, color24, color24, Floats::f24::fromFloat32(1.0f)};
+			shader->floatUniforms()[i] = testValue;
+			floatUniforms[i] = testValue;
+		}
+		// Integer uniforms
+		else if (i >= 0x60 && i < 0x64) {
+			const u8 color = static_cast<u8>((i - 0x60) * 0x10);
+			shader->intUniforms()[i - 0x60] = {color, color, color, 255};
+		}
+		// Bool uniforms(bools packed into an integer)
+		else if (i >= 0x70 && i < 0x80) {
+			shader->boolUniforms() |= (i >= 0x78) << (i - 0x70);
+		}
+	}
+
+	REQUIRE(shader->runVector({0.f}) == floatUniforms[40]);
+	REQUIRE(shader->runVector({13.f}) == floatUniforms[53]);
+	REQUIRE(shader->runVector({50.f}) == floatUniforms[90]);
+	REQUIRE(shader->runVector({60.f}) == vectorOnes);
+	REQUIRE(shader->runVector({74.f}) == vectorOnes);
+	REQUIRE(shader->runVector({87.f}) == vectorOnes);
+	REQUIRE(shader->runVector({88.f}) == floatUniforms[0]);
+	REQUIRE(shader->runVector({128.f}) == floatUniforms[40]);
+	REQUIRE(shader->runVector({-40.f}) == floatUniforms[0]);
+	REQUIRE(shader->runVector({-42.f}) == vectorOnes);
+	REQUIRE(shader->runVector({-70.f}) == vectorOnes);
+	REQUIRE(shader->runVector({-73.f}) == floatUniforms[95]);
+	REQUIRE(shader->runVector({-127.f}) == floatUniforms[41]);
+	REQUIRE(shader->runVector({-129.f}) == floatUniforms[40]);
 }
