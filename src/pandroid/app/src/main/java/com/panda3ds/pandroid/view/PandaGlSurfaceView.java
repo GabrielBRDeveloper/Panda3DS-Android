@@ -2,7 +2,10 @@ package com.panda3ds.pandroid.view;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
+import android.os.Build;
 import android.os.Debug;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 
 import androidx.annotation.NonNull;
 import com.panda3ds.pandroid.math.Vector2;
@@ -23,6 +26,16 @@ public class PandaGlSurfaceView extends GLSurfaceView implements TouchScreenNode
 		}
 		renderer = new PandaGlRenderer(getContext(), romPath);
 		setRenderer(renderer);
+	}
+
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		super.surfaceCreated(holder);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+			holder.getSurface().setFrameRate(120.0f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE, Surface.CHANGE_FRAME_RATE_ONLY_IF_SEAMLESS);
+		} else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+			holder.getSurface().setFrameRate(120.0f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+		}
 	}
 
 	public ConsoleRenderer getRenderer() { return renderer; }
